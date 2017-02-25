@@ -1,0 +1,104 @@
+---
+title: "Practical Machine Learning Final Project"
+author: "West Pang"
+date: "February 19, 2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Executive Summary
+
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement - a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, your goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information is available from the website here: http://groupware.les.inf.puc-rio.br/har (see the section on the Weight Lifting Exercise Dataset).
+
+
+## Getting Data
+
+The training data for this project are available here:
+
+https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv
+
+The test data are available here:
+
+https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv
+
+
+The data for this project come from this source: http://groupware.les.inf.puc-rio.br/har. If you use the document you create for this class for any purpose please cite them as they have been very generous in allowing their data to be used for this kind of assignment.
+
+```{r echo=TRUE}
+library(caret)
+library(rpart)
+library(randomForest)
+library(rattle)
+
+data <- read.csv("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv")
+testset <- read.csv("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv")
+```
+
+## Cleaning Data
+
+The first 7 columns of the data sets do not matter to the training and the prediction of the "classes" variable and need to be removed.
+
+```{r echo=TRUE}
+data<-data[,-c(1:7)]
+testset<-testset[,-c(1:7)]
+```
+
+There are data that not available and shall be removed to ensure that it does not influence the result of the training and prediction. In this case, if the mean of amount of data unavailability for each variable is above 90%, the column will be removed. For the remaining, the unavailable variable will be zeroed.
+```{r echo=TRUE}
+invalid <- sapply(data, function(x) mean(is.na(x))) > 0.90
+data <- data[, invalid==F]
+testset <- testset[,invalid==F]
+
+```
+
+##Data Preparation
+
+To estimate the out-of-sample error, the data is split into a smaller training set (training) and a testing set (testing):
+
+```{r echo=TRUE}
+set.seed(3433)
+inTrain <- createDataPartition(data$classe, p=0.7, list=FALSE)
+training<-data[inTrain,]
+testing<-data[-inTrain,]
+```
+##BUilding MOdel
+
+Two models are selected for this project, they are the RPART and also RANDOM FOREST, the two models will be checked for the accuracy to determine which one to be decided to run prediction of the testing data.
+
+##Building Model-Comparison Tree
+
+```{r echo=TRUE}
+set.seed(62433)
+control <- trainControl(method='cv', number = 3)
+mod_rpart <- train(classe ~ ., data = training, method = "rpart",trControl = control)
+pred_rpart <- predict(mod_rpart, testing)
+```
+
+COMPARISON TREE shows the accuracy of
+```{r echo=TRUE}
+confusionMatrix(pred_rpart, testing$classe)$overall[1]
+```
+
+##Building Model-Random Forest
+```{r echo=TRUE}
+set.seed(62433)
+control <- trainControl(method='cv', number = 3)
+mod_rf <- train(classe ~ ., data = training, method = "rf",trControl = control)
+pred_rf <- predict(mod_rf, testing)
+```
+
+Random Forest shows the accuracy of
+```{r echo=TRUE}
+confusionMatrix(pred_rf, testing$classe)$overall[1]
+```
+
+##Predicting The Test Sets
+
+Since the Random Forest prediction gives a higher accuracy, it is selected to run the prediction of the testing data and the result is printed as below.
+```{r echo=TRUE}
+predict(mod_rf, testset)
+```
+
